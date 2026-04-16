@@ -16,16 +16,24 @@
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'wit'))
+import traceback
+_WIT_DIR = os.path.join(os.path.dirname(__file__), "wit")
+if _WIT_DIR not in sys.path:
+    sys.path.append(_WIT_DIR)
 
 from typing import Dict, Callable, Any, Type, Optional, List, Union
 
-from .wit.wit_world.imports import (
-    server, event, command, context, text, scheduler, 
-    logging, gui, scoreboard, i18n, player, world, 
+try:
+    import wit_world
+except ImportError:
+    from .wit import wit_world
+
+from wit_world.imports import (
+    server, event, command, context, text, scheduler,
+    logging, gui, scoreboard, i18n, player, world,
     common, block_entity, permission
 )
-from .wit.wit_world.exports import metadata
+from wit_world.exports import metadata
 from componentize_py_types import Err
 
 class PluginMetadata(metadata.PluginMetadata):
@@ -36,6 +44,24 @@ _EVENT_HANDLERS: Dict[int, Callable[[server.Server, Any], Any]] = {}
 _COMMAND_HANDLERS: Dict[int, Callable[[command.CommandSender, server.Server, command.ConsumedArgs], int]] = {}
 _TASK_HANDLERS: Dict[int, Callable[[server.Server], None]] = {}
 _NEXT_HANDLER_ID: int = 0
+
+
+def _exception_message(exc: Exception) -> str:
+    if hasattr(exc, "value"):
+        value = getattr(exc, "value")
+        if value is not None:
+            return str(value)
+    message = str(exc)
+    if message:
+        return message
+    return "".join(traceback.format_exception_only(type(exc), exc)).strip()
+
+
+def _format_exception(exc: Exception) -> str:
+    details = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)).strip()
+    if details:
+        return details
+    return _exception_message(exc)
 
 def _get_next_handler_id() -> int:
     global _NEXT_HANDLER_ID
@@ -68,6 +94,9 @@ class Plugin:
         cmd.execute_with_handler_id(handler_id)
         ctx.register_command(cmd, permission)
 
+    def register_permission(self, ctx: context.Context, perm: permission.Permission) -> None:
+        ctx.register_permission(perm)
+
     def schedule_delayed_task(self, delay_ticks: int, handler: Callable[[server.Server], None]) -> int:
         handler_id = _get_next_handler_id()
         _TASK_HANDLERS[handler_id] = handler
@@ -98,15 +127,19 @@ class WitWorldImpl:
                 # In WIT, on-load returns result<_, string>
                 # componentize-py handles this by expecting None or raising Err
                 _PLUGIN_INSTANCE.on_load(ctx)
+            except Err as e:
+                raise Err(_exception_message(e))
             except Exception as e:
-                raise Err(str(e))
+                raise Err(_format_exception(e))
 
     def on_unload(self, ctx: context.Context) -> None:
         if _PLUGIN_INSTANCE:
             try:
                 _PLUGIN_INSTANCE.on_unload(ctx)
+            except Err as e:
+                raise Err(_exception_message(e))
             except Exception as e:
-                raise Err(str(e))
+                raise Err(_format_exception(e))
 
     def handle_event(self, event_id: int, srv: server.Server, evt: event.Event) -> event.Event:
         if event_id in _EVENT_HANDLERS:
@@ -124,9 +157,9 @@ class WitWorldImpl:
             except Exception as e:
                 if hasattr(e, 'value') and isinstance(e.value, (command.CommandError_InvalidConsumption, command.CommandError_InvalidRequirement, command.CommandError_PermissionDenied, command.CommandError_CommandFailed)):
                      raise e
-                raise Err(command.CommandError_CommandFailed(text.TextComponent_text(str(e))))
+                raise Err(command.CommandError_CommandFailed(text.TextComponent.text(_format_exception(e))))
 
-        raise Err(command.CommandError_CommandFailed(text.TextComponent_text(f"no handler registered for command id {command_id}")))
+        raise Err(command.CommandError_CommandFailed(text.TextComponent.text(f"no handler registered for command id {command_id}")))
 
     def handle_task(self, handler_id: int, srv: server.Server) -> None:
         if handler_id in _TASK_HANDLERS:

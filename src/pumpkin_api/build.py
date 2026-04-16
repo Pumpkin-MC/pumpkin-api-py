@@ -1,7 +1,39 @@
 import argparse
+import os
 import subprocess
 import sys
-import os
+
+PUMPKIN_API_VERSION = "0.1.0"
+PUMPKIN_API_VERSION_SECTION = "pumpkin:api-version"
+
+
+def _encode_varuint32(value: int) -> bytes:
+    encoded = bytearray()
+    while True:
+        byte = value & 0x7F
+        value >>= 7
+        if value:
+            encoded.append(byte | 0x80)
+        else:
+            encoded.append(byte)
+            return bytes(encoded)
+
+
+def _build_custom_section(name: str, data: bytes) -> bytes:
+    name_bytes = name.encode("utf-8")
+    payload = _encode_varuint32(len(name_bytes)) + name_bytes + data
+    return bytes([0]) + _encode_varuint32(len(payload)) + payload
+
+
+def _append_api_version_custom_section(output_path: str) -> None:
+    with open(output_path, "ab") as wasm_file:
+        wasm_file.write(
+            _build_custom_section(
+                PUMPKIN_API_VERSION_SECTION,
+                PUMPKIN_API_VERSION.encode("utf-8"),
+            )
+        )
+
 
 def main():
     parser = argparse.ArgumentParser(description="Build a Pumpkin Python plugin")
@@ -16,7 +48,7 @@ def main():
     wit_dir = os.path.join(pkg_dir, "wit_files", "repo", "pumpkin-plugin-wit", "v0.1.0")
     if not os.path.exists(wit_dir):
         wit_dir = os.path.join(pkg_dir, "wit_files")
-    
+
     # Pass the parent directory of pumpkin_api to componentize-py so it can resolve `pumpkin_api` module
     # in case it's not installed in a standard site-packages (e.g. editable install or no venv)
     pkg_parent_dir = os.path.dirname(pkg_dir)
@@ -33,7 +65,11 @@ def main():
 
     print(f"Running: {' '.join(cmd)}")
     result = subprocess.run(cmd)
-    sys.exit(result.returncode)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+
+    _append_api_version_custom_section(args.output)
+
 
 if __name__ == "__main__":
     main()
