@@ -2,7 +2,6 @@ from pumpkin_api import (
     Plugin, PluginMetadata, register_plugin,
     server, event, command, text, context, logging, permission
 )
-from pumpkin_api.app import WitWorld, Metadata
 
 class MyPlugin(Plugin):
     def metadata(self) -> PluginMetadata:

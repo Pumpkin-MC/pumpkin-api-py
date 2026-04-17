@@ -2,6 +2,7 @@ import argparse
 import os
 import subprocess
 import sys
+import tempfile
 
 PUMPKIN_API_VERSION = "0.1.0"
 PUMPKIN_API_VERSION_SECTION = "pumpkin:api-version"
@@ -35,6 +36,25 @@ def _append_api_version_custom_section(output_path: str) -> None:
         )
 
 
+def _build_entrypoint_wrapper(app_module: str, wrapper_dir: str) -> str:
+    wrapper_name = "_pumpkin_componentize_entry"
+    wrapper_path = os.path.join(wrapper_dir, f"{wrapper_name}.py")
+    with open(wrapper_path, "w", encoding="utf-8") as wrapper_file:
+        wrapper_file.write(
+            "from importlib import import_module\n"
+            "from pumpkin_api.app import Metadata, WitWorld\n\n"
+            f"_user_module = import_module({app_module!r})\n"
+            "globals().update(\n"
+            "    {\n"
+            "        name: getattr(_user_module, name)\n"
+            "        for name in dir(_user_module)\n"
+            "        if not name.startswith('__')\n"
+            "    }\n"
+            ")\n"
+        )
+    return wrapper_name
+
+
 def main():
     parser = argparse.ArgumentParser(description="Build a Pumpkin Python plugin")
     parser.add_argument("app_module", help="The python module containing the plugin (e.g. 'main')")
@@ -53,20 +73,23 @@ def main():
     # in case it's not installed in a standard site-packages (e.g. editable install or no venv)
     pkg_parent_dir = os.path.dirname(pkg_dir)
 
-    cmd = [
-        "componentize-py",
-        "-d", wit_dir,
-        "-w", "plugin",
-        "componentize", args.app_module,
-        "-o", args.output,
-        "-p", ".",
-        "-p", pkg_parent_dir
-    ]
+    with tempfile.TemporaryDirectory(prefix="pumpkin-api-build-") as wrapper_dir:
+        wrapper_module = _build_entrypoint_wrapper(args.app_module, wrapper_dir)
+        cmd = [
+            "componentize-py",
+            "-d", wit_dir,
+            "-w", "plugin",
+            "componentize", wrapper_module,
+            "-o", args.output,
+            "-p", ".",
+            "-p", pkg_parent_dir,
+            "-p", wrapper_dir,
+        ]
 
-    print(f"Running: {' '.join(cmd)}")
-    result = subprocess.run(cmd)
-    if result.returncode != 0:
-        sys.exit(result.returncode)
+        print(f"Running: {' '.join(cmd)}")
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            sys.exit(result.returncode)
 
     _append_api_version_custom_section(args.output)
 
