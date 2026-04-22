@@ -13,30 +13,22 @@ pip install pumpkin-api-py
 2. Create your plugin (`main.py`):
 
 ```python
-from pumpkin_api import (
-    Plugin, PluginMetadata, register_plugin, 
-    server, event, command, text, context
-)
+from pumpkin_api import Plugin, context, logging, metadata, register_plugin
+
+PluginMetadata = metadata.PluginMetadata
 
 class MyPlugin(Plugin):
     def metadata(self) -> PluginMetadata:
         return PluginMetadata(
-            name="my-plugin",
+            name="my-python-plugin",
             version="0.1.0",
             authors=["you"],
-            description="An example plugin.",
-            dependencies=[]
+            description="An example python plugin.",
+            dependencies=[],
         )
 
     def on_load(self, ctx: context.Context) -> None:
-        print("Python plugin loaded!")
-        
-        # Register an event handler
-        self.register_event(ctx, event.EventType.PLAYER_JOIN_EVENT, self.on_player_join)
-
-    def on_player_join(self, srv: server.Server, evt: event.PlayerJoinEventData) -> event.PlayerJoinEventData:
-        print(f"Player {evt.player.get_name()} joined!")
-        return evt
+        logging.log(logging.Level.INFO, "Python plugin loaded!")
 
 register_plugin(MyPlugin)
 ```
@@ -44,5 +36,5 @@ register_plugin(MyPlugin)
 3. Build your plugin into a WebAssembly component:
 
 ```bash
-pumpkin-api-build main -o my_plugin.wasm
+pumpkin-plugin-build main -o my_plugin.wasm
 ```

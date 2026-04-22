@@ -1,139 +1,41 @@
-# pumpkin-api-py: Pumpkin plugin API for Python
-# Copyright (C) 2024 alex
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'wit'))
-
-from typing import Dict, Callable, Any, Type, Optional, List, Union
-
-from .wit.wit_world.imports import (
-    server, event, command, context, text, scheduler, 
-    logging, gui, scoreboard, i18n, player, world, 
-    common, block_entity, permission
+from wit_world.exports import metadata
+from wit_world.imports import (
+    block_entity,
+    command,
+    common,
+    context,
+    event,
+    gui,
+    i18n,
+    logging,
+    permission,
+    player,
+    scheduler,
+    scoreboard,
+    server,
+    text,
+    world,
 )
-from .wit.wit_world.exports import metadata
-from componentize_py_types import Err
 
-class PluginMetadata(metadata.PluginMetadata):
-    pass
+from .impl import Plugin, register_plugin
 
-_PLUGIN_INSTANCE: Optional['Plugin'] = None
-_EVENT_HANDLERS: Dict[int, Callable[[server.Server, Any], Any]] = {}
-_COMMAND_HANDLERS: Dict[int, Callable[[command.CommandSender, server.Server, command.ConsumedArgs], int]] = {}
-_TASK_HANDLERS: Dict[int, Callable[[server.Server], None]] = {}
-_NEXT_HANDLER_ID: int = 0
-
-def _get_next_handler_id() -> int:
-    global _NEXT_HANDLER_ID
-    handler_id = _NEXT_HANDLER_ID
-    _NEXT_HANDLER_ID += 1
-    return handler_id
-
-class Plugin:
-    def __init__(self):
-        self._pending_events = []
-
-    def metadata(self) -> PluginMetadata:
-        raise NotImplementedError
-
-    def on_load(self, ctx: context.Context) -> None:
-        for event_type, handler, priority, blocking in self._pending_events:
-            self.register_event(ctx, event_type, handler, priority, blocking)
-
-    def on_unload(self, ctx: context.Context) -> None:
-        pass
-
-    def register_event(self, ctx: context.Context, event_type: event.EventType, handler: Callable[[server.Server, Any], Any], priority=event.EventPriority.NORMAL, blocking=True):
-        handler_id = _get_next_handler_id()
-        _EVENT_HANDLERS[handler_id] = handler
-        ctx.register_event(handler_id, event_type, priority, blocking)
-
-    def register_command(self, ctx: context.Context, cmd: command.Command, handler: Callable[[command.CommandSender, server.Server, command.ConsumedArgs], int], permission: str = ""):
-        handler_id = _get_next_handler_id()
-        _COMMAND_HANDLERS[handler_id] = handler
-        cmd.execute_with_handler_id(handler_id)
-        ctx.register_command(cmd, permission)
-
-    def schedule_delayed_task(self, delay_ticks: int, handler: Callable[[server.Server], None]) -> int:
-        handler_id = _get_next_handler_id()
-        _TASK_HANDLERS[handler_id] = handler
-        return scheduler.schedule_delayed_task(handler_id, delay_ticks)
-
-    def schedule_repeating_task(self, delay_ticks: int, period_ticks: int, handler: Callable[[server.Server], None]) -> int:
-        handler_id = _get_next_handler_id()
-        _TASK_HANDLERS[handler_id] = handler
-        return scheduler.schedule_repeating_task(handler_id, delay_ticks, period_ticks)
-
-    def event_handler(self, event_type: event.EventType, priority=event.EventPriority.NORMAL, blocking=True):
-        def decorator(func):
-            self._pending_events.append((event_type, func, priority, blocking))
-            return func
-        return decorator
-
-def register_plugin(plugin_class: Type[Plugin]):
-    global _PLUGIN_INSTANCE
-    _PLUGIN_INSTANCE = plugin_class()
-
-class WitWorldImpl:
-    def init_plugin(self) -> None:
-        pass
-
-    def on_load(self, ctx: context.Context) -> None:
-        if _PLUGIN_INSTANCE:
-            try:
-                # In WIT, on-load returns result<_, string>
-                # componentize-py handles this by expecting None or raising Err
-                _PLUGIN_INSTANCE.on_load(ctx)
-            except Exception as e:
-                raise Err(str(e))
-
-    def on_unload(self, ctx: context.Context) -> None:
-        if _PLUGIN_INSTANCE:
-            try:
-                _PLUGIN_INSTANCE.on_unload(ctx)
-            except Exception as e:
-                raise Err(str(e))
-
-    def handle_event(self, event_id: int, srv: server.Server, evt: event.Event) -> event.Event:
-        if event_id in _EVENT_HANDLERS:
-            # Pass the inner event data to the handler
-            result = _EVENT_HANDLERS[event_id](srv, evt.value)
-            # If the handler returns something, assume it's the updated event data
-            if result is not None:
-                evt.value = result
-        return evt
-
-    def handle_command(self, command_id: int, sender: command.CommandSender, srv: server.Server, args: command.ConsumedArgs) -> int:
-        if command_id in _COMMAND_HANDLERS:
-            try:
-                return _COMMAND_HANDLERS[command_id](sender, srv, args)
-            except Exception as e:
-                if hasattr(e, 'value') and isinstance(e.value, (command.CommandError_InvalidConsumption, command.CommandError_InvalidRequirement, command.CommandError_PermissionDenied, command.CommandError_CommandFailed)):
-                     raise e
-                raise Err(command.CommandError_CommandFailed(text.TextComponent_text(str(e))))
-
-        raise Err(command.CommandError_CommandFailed(text.TextComponent_text(f"no handler registered for command id {command_id}")))
-
-    def handle_task(self, handler_id: int, srv: server.Server) -> None:
-        if handler_id in _TASK_HANDLERS:
-            _TASK_HANDLERS[handler_id](srv)
-
-class MetadataImpl:
-    def get_metadata(self) -> metadata.PluginMetadata:
-        if _PLUGIN_INSTANCE:
-            return _PLUGIN_INSTANCE.metadata()
-        return PluginMetadata("unknown", "0.0.0", [], "No metadata")
+__all__ = [
+    "Plugin",
+    "register_plugin",
+    "block_entity",
+    "command",
+    "common",
+    "context",
+    "event",
+    "gui",
+    "i18n",
+    "logging",
+    "metadata",
+    "permission",
+    "player",
+    "scheduler",
+    "server",
+    "scoreboard",
+    "text",
+    "world",
+]

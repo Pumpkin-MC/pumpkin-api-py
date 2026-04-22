@@ -1,6 +1,6 @@
 [project]
 name = "pumpkin-api-py"
-version = "0.1.0.dev1"
+version = "0.1.0.dev2"
 description = "Pumpkin plugin API for Python"
 authors = [{name = "alex"}]
 license = "GPL-3.0-only"
@@ -11,36 +11,25 @@ readme = "README.md"
 requires-python = ">=3.9"
 
 [project.scripts]
-pumpkin-api-build = "pumpkin_api.build:main"
+pumpkin-plugin-build = "pumpkin_api.build:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling","componentize-py>=0.22.1"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
 include = [
     "src/pumpkin_api",
+    "hatch_build.py",
+    "wit/repo/pumpkin-plugin-wit/v0.1"
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pumpkin_api"]
+include = ["src/pumpkin_api", "wit/repo/pumpkin-plugin-wit/v0.1/"]
 
 [tool.hatch.build.targets.wheel.sources]
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/block-entity.wit" = "pumpkin_api/wit_files/block-entity.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/command.wit" = "pumpkin_api/wit_files/command.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/common.wit" = "pumpkin_api/wit_files/common.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/context.wit" = "pumpkin_api/wit_files/context.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/entity.wit" = "pumpkin_api/wit_files/entity.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/event.wit" = "pumpkin_api/wit_files/event.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/gui.wit" = "pumpkin_api/wit_files/gui.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/i18n.wit" = "pumpkin_api/wit_files/i18n.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/log.wit" = "pumpkin_api/wit_files/log.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/metadata.wit" = "pumpkin_api/wit_files/metadata.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/permission.wit" = "pumpkin_api/wit_files/permission.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/player.wit" = "pumpkin_api/wit_files/player.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/plugin.wit" = "pumpkin_api/wit_files/plugin.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/scheduler.wit" = "pumpkin_api/wit_files/scheduler.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/scoreboard.wit" = "pumpkin_api/wit_files/scoreboard.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/server.wit" = "pumpkin_api/wit_files/server.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/text.wit" = "pumpkin_api/wit_files/text.wit"
-"src/pumpkin_api/wit_files/repo/pumpkin-plugin-wit/v0.1.0/world.wit" = "pumpkin_api/wit_files/world.wit"
+"src" = ""
+"bindings" = ""
+"wit/repo/pumpkin-plugin-wit/v0.1/" = "pumpkin_api/wit"
+
+[tool.hatch.build.targets.wheel.hooks.custom]
