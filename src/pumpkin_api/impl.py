@@ -213,4 +213,4 @@ class MetadataImpl:
     def get_metadata(self) -> metadata.PluginMetadata:
         if _PLUGIN_INSTANCE:
             return _PLUGIN_INSTANCE.metadata()
-        return metadata.PluginMetadata("unknown", "0.0.0", [], "No metadata", [])
+        return metadata.PluginMetadata("unknown", "0.0.0", [], "No metadata", [], [])
