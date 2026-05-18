@@ -85,6 +85,13 @@ class Plugin:
         _EVENT_HANDLERS[handler_id] = handler
         ctx.register_event(handler_id, event_type, priority, blocking)
 
+    def register_handler(self, handler: Callable[
+            [command.CommandSender, server.Server, command.ConsumedArgs], int
+        ]) -> int:
+        handler_id = _get_next_handler_id()
+        _COMMAND_HANDLERS[handler_id] = handler
+        return handler_id
+
     def register_command(
         self,
         ctx: context.Context,
@@ -93,10 +100,13 @@ class Plugin:
             [command.CommandSender, server.Server, command.ConsumedArgs], int
         ],
         permission: str = "",
+        extra_nodes = None
     ):
-        handler_id = _get_next_handler_id()
-        _COMMAND_HANDLERS[handler_id] = handler
+        handler_id = self.register_handler(handler)
         cmd.execute_with_handler_id(handler_id)
+        if extra_nodes:
+            for node in extra_nodes:
+                node.execute_with_handler_id(handler_id)
         ctx.register_command(cmd, permission)
 
     def schedule_delayed_task(
