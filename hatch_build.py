@@ -12,9 +12,7 @@ class CustomBuildHook(BuildHookInterface):
             rmtree(bindings_out_path)
 
         componentize_py.generate_bindings(
-            wit_path=[
-                path.join(self.root, "wit", "repo", "pumpkin-plugin-wit", "v0.1")
-            ],
+            wit_path=[path.join(self.root, "wit", "v0.1")],
             worlds=[],
             features=[],
             all_features=False,

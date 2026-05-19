@@ -1,6 +1,6 @@
 [project]
 name = "pumpkin-api-py"
-version = "0.1.0.dev3"
+version = "0.1.0.dev4"
 description = "Pumpkin plugin API for Python"
 authors = [{name = "alex"}]
 license = "GPL-3.0-only"
@@ -21,15 +21,15 @@ build-backend = "hatchling.build"
 include = [
     "src/pumpkin_api",
     "hatch_build.py",
-    "wit/repo/pumpkin-plugin-wit/v0.1"
+    "wit/v0.1"
 ]
 
 [tool.hatch.build.targets.wheel]
-include = ["src/pumpkin_api", "wit/repo/pumpkin-plugin-wit/v0.1/"]
+include = ["src/pumpkin_api", "wit/v0.1/"]
 
 [tool.hatch.build.targets.wheel.sources]
 "src" = ""
 "bindings" = ""
-"wit/repo/pumpkin-plugin-wit/v0.1/" = "pumpkin_api/wit"
+"wit/v0.1/" = "pumpkin_api/wit"
 
 [tool.hatch.build.targets.wheel.hooks.custom]

@@ -35,9 +35,7 @@ def main():
     pkg_dir = os.path.dirname(pumpkin_api.__file__)
     # In source checkout, they are in wit_files/repo/...
     # In installed package, they are directly in wit_files/
-    wit_dir = os.path.join(
-        pkg_dir, "..", "..", "wit", "repo", "pumpkin-plugin-wit", "v0.1.0"
-    )
+    wit_dir = os.path.join(pkg_dir, "..", "..", "wit", "v0.1")
     if not os.path.exists(wit_dir):
         wit_dir = os.path.join(pkg_dir, "wit")
 
