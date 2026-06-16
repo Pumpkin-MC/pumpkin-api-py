@@ -22,6 +22,7 @@ class MyPlugin(Plugin):
             authors=["you"],
             description="An example python plugin.",
             dependencies=[],
+            permissions=[],
         )
 
     def on_load(self, ctx: context.Context) -> None:

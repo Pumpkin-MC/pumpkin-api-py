@@ -60,6 +60,7 @@ def main():
             import_interface_names=[],
             export_interface_names=[],
             full_names=False,
+            intersect_world=None,
         )
 
 
