@@ -1,11 +1,11 @@
 [project]
 name = "pumpkin-api-py"
-version = "0.1.0.dev4"
+version = "0.1.0.dev5"
 description = "Pumpkin plugin API for Python"
 authors = [{name = "alex"}]
 license = "GPL-3.0-only"
 dependencies = [
-    "componentize-py>=0.24.0",
+    "componentize-py==0.24.0",
 ]
 readme = "README.md"
 requires-python = ">=3.9"
