@@ -45,21 +45,3 @@ jobs:
           file: dist/pumpkin_api_py*
           overwrite: true
           file_glob: true
-  publish:
-      name: Publish to PyPI
-      needs: release
-      if: startsWith(github.ref, 'refs/tags/v')
-      runs-on: ubuntu-latest
-      environment:
-        name: pypi
-        url: https://pypi.org/p/pumpkin-api-py
-      permissions:
-        id-token: write
-      steps:
-        - name: Download artifacts
-          uses: actions/download-artifact@v4
-          with:
-            name: python-dist
-            path: dist/
-        - name: Publish
-          uses: pypa/gh-action-pypi-publish@release/v1
