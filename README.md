@@ -7,7 +7,7 @@ This package provides everything needed to write a Pumpkin server plugin compile
 1. Install `pumpkin-api-py`:
 
 ```bash
-pip install pumpkin-api-py
+pip install git+https://github.com/Pumpkin-MC/pumpkin-api-py.git
 ```
 
 2. Create your plugin (`main.py`):
