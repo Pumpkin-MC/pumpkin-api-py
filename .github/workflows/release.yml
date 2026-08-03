@@ -1,8 +1,6 @@
 name: Release
 on:
   push:
-    tags:
-      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -30,6 +28,26 @@ jobs:
       - name: Build
         run: python -m build
 
+      - name: Set GITHUB_RELEASE_TAG & ARTIFACT_ID
+        run: |
+          set -eux
+          if [[ '${{ github.ref }}' = refs/tags/v* ]]; then
+            tag='${{ github.ref }}'
+            tag="${tag:10}"
+            artifactID="${tag:1}"
+          else
+            tag=CI
+            artifactID='${{ github.sha }}'
+            artifactID="${artifactID:0:8}"
+          fi
+          echo "GITHUB_RELEASE_TAG=$tag" >> $GITHUB_ENV
+          echo "ARTIFACT_ID=$artifactID" >> $GITHUB_ENV
+
+      - name: Rename artifacts
+        run: |
+          mv dist/pumpkin_api_py-*-py3-none-any.whl dist/pumpkin_api_py-${ARTIFACT_ID}-py3-none-any.whl
+          mv dist/pumpkin_api_py-*.tar.gz dist/pumpkin_api_py-${ARTIFACT_ID}.tar.gz
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -37,11 +55,13 @@ jobs:
           path: dist/pumpkin_api_py*
 
       - name: Upload artifacts to release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: svenstaro/upload-release-action@v2
+        uses: ncipollo/release-action@v1
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref }}
-          file: dist/pumpkin_api_py*
-          overwrite: true
-          file_glob: true
+          tag: ${{ env.GITHUB_RELEASE_TAG }}
+          artifacts: dist/pumpkin_api_py*
+          allowUpdates: true
+          omitPrereleaseDuringUpdate: true
+          omitName: true
+          omitBody: true
+          omitDraftDuringUpdate: true
+          removeArtifacts: true

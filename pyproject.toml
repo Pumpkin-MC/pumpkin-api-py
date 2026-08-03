@@ -1,6 +1,6 @@
 [project]
 name = "pumpkin-api-py"
-version = "0.1.0.dev7"
+version = "0.1.0"
 description = "Pumpkin plugin API for Python"
 authors = [{name = "alex"}]
 license = "GPL-3.0-only"
