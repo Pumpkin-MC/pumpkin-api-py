@@ -1,18 +1,15 @@
-name: Release
+name: Main
 on:
   push:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Update WIT"]
-    types: [completed]
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  release:
-    name: Build and release
+  main:
+    name: Build, test, and release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,6 +27,14 @@ jobs:
 
       - name: Build
         run: python -m build
+
+      - name: Install built artifacts
+        run: pip install dist/*.whl
+
+      - name: Build example plugin to test
+        run: |
+          cd example
+          pumpkin-plugin-build main
 
       - name: Set GITHUB_RELEASE_TAG & ARTIFACT_ID
         run: |
