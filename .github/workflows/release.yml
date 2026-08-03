@@ -2,6 +2,9 @@ name: Release
 on:
   push:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Update WIT"]
+    types: [completed]
 
 permissions:
   contents: write
