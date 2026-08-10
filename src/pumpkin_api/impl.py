@@ -15,13 +15,22 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import traceback
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Callable, Dict, Optional, Type, TypedDict
 
 import wit_world
 import wit_world.exports
 from componentize_py_types import Err
 from wit_world.exports import metadata
-from wit_world.imports import command, context, event, scheduler, server, text
+from wit_world.imports import command, context, event, scheduler, server, text, world
+
+
+class AiGoal(TypedDict):
+    can_start: Callable[[server.Server, world.Entity], bool]
+    should_continue: Callable[[server.Server, world.Entity], bool]
+    start: Callable[[server.Server, world.Entity], None]
+    tick: Callable[[server.Server, world.Entity], None]
+    stop: Callable[[server.Server, world.Entity], None]
+
 
 _PLUGIN_INSTANCE: Optional["Plugin"] = None
 _EVENT_HANDLERS: Dict[int, Callable[[server.Server, Any], Any]] = {}
@@ -29,7 +38,10 @@ _COMMAND_HANDLERS: Dict[
     int, Callable[[command.CommandSender, server.Server, command.ConsumedArgs], int]
 ] = {}
 _TASK_HANDLERS: Dict[int, Callable[[server.Server], None]] = {}
+_AI_GOALS: Dict[int, AiGoal] = {}
+
 _NEXT_HANDLER_ID: int = 0
+_NEXT_AI_GOAL_ID: int = 0
 
 
 def _exception_message(exc: Exception) -> str:
@@ -59,6 +71,13 @@ def _get_next_handler_id() -> int:
     return handler_id
 
 
+def _get_ai_goal_id() -> int:
+    global _NEXT_AI_GOAL_ID
+    goal_id = _NEXT_AI_GOAL_ID
+    _NEXT_AI_GOAL_ID += 1
+    return goal_id
+
+
 class Plugin:
     def __init__(self):
         self._pending_events = []
@@ -85,9 +104,12 @@ class Plugin:
         _EVENT_HANDLERS[handler_id] = handler
         ctx.register_event(handler_id, event_type, priority, blocking)
 
-    def register_handler(self, handler: Callable[
+    def register_handler(
+        self,
+        handler: Callable[
             [command.CommandSender, server.Server, command.ConsumedArgs], int
-        ]) -> int:
+        ],
+    ) -> int:
         handler_id = _get_next_handler_id()
         _COMMAND_HANDLERS[handler_id] = handler
         return handler_id
@@ -100,7 +122,7 @@ class Plugin:
             [command.CommandSender, server.Server, command.ConsumedArgs], int
         ],
         permission: str = "",
-        extra_nodes = None
+        extra_nodes=None,
     ):
         handler_id = self.register_handler(handler)
         cmd.execute_with_handler_id(handler_id)
@@ -108,6 +130,11 @@ class Plugin:
             for node in extra_nodes:
                 node.execute_with_handler_id(handler_id)
         ctx.register_command(cmd, permission)
+
+    def register_ai_goal(self, goal: AiGoal) -> int:
+        goal_id = _get_ai_goal_id()
+        _AI_GOALS[goal_id] = goal
+        return goal_id
 
     def schedule_delayed_task(
         self, delay_ticks: int, handler: Callable[[server.Server], None]
@@ -137,6 +164,9 @@ class Plugin:
             return func
 
         return decorator
+
+    def handle_ipc_message(self, sender: str, message: bytes) -> bytes:
+        raise NotImplementedError
 
 
 def register_plugin(plugin_class: Type[Plugin]):
@@ -217,6 +247,57 @@ class WitWorldImpl(wit_world.WitWorld):
     def handle_task(self, handler_id: int, server: server.Server) -> None:
         if handler_id in _TASK_HANDLERS:
             _TASK_HANDLERS[handler_id](server)
+
+    def handle_ipc_message(self, sender: str, message: bytes) -> bytes:
+        if _PLUGIN_INSTANCE:
+            try:
+                return _PLUGIN_INSTANCE.handle_ipc_message(sender, message)
+            except Err as e:
+                raise Err(_exception_message(e))
+            except Exception as e:
+                raise Err(_format_exception(e))
+
+        raise Err("Internal error: No plugin instance available?")
+
+    def handle_ai_goal_can_start(
+        self, goal_id: int, server: server.Server, entity: world.Entity
+    ) -> bool:
+        if goal_id in _AI_GOALS:
+            return _AI_GOALS[goal_id].can_start(server, entity)
+
+        raise Exception(f"No AI goal registered for ID {goal_id}")
+
+    def handle_ai_goal_should_continue(
+        self, goal_id: int, server: server.Server, entity: world.Entity
+    ) -> bool:
+        if goal_id in _AI_GOALS:
+            return _AI_GOALS[goal_id].should_continue(server, entity)
+
+        raise Exception(f"No AI goal registered for ID {goal_id}")
+
+    def handle_ai_goal_start(
+        self, goal_id: int, server: server.Server, entity: world.Entity
+    ) -> None:
+        if goal_id in _AI_GOALS:
+            _AI_GOALS[goal_id].start(server, entity)
+            return
+        raise Exception(f"No AI goal registered for ID {goal_id}")
+
+    def handle_ai_goal_tick(
+        self, goal_id: int, server: server.Server, entity: world.Entity
+    ) -> None:
+        if goal_id in _AI_GOALS:
+            _AI_GOALS[goal_id].tick(server, entity)
+            return
+        raise Exception(f"No AI goal registered for ID {goal_id}")
+
+    def handle_ai_goal_stop(
+        self, goal_id: int, server: server.Server, entity: world.Entity
+    ) -> None:
+        if goal_id in _AI_GOALS:
+            _AI_GOALS[goal_id].stop(server, entity)
+            return
+        raise Exception(f"No AI goal registered for ID {goal_id}")
 
 
 class MetadataImpl:
