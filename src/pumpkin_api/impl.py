@@ -39,9 +39,9 @@ _COMMAND_HANDLERS: Dict[
 ] = {}
 _TASK_HANDLERS: Dict[int, Callable[[server.Server], None]] = {}
 _AI_GOALS: Dict[int, AiGoal] = {}
+_GENERATORS: Dict[int, Callable[[world.GenerationPhase, world.ChunkBuffer], None]] = {}
 
 _NEXT_HANDLER_ID: int = 0
-_NEXT_AI_GOAL_ID: int = 0
 
 
 def _exception_message(exc: Exception) -> str:
@@ -69,13 +69,6 @@ def _get_next_handler_id() -> int:
     handler_id = _NEXT_HANDLER_ID
     _NEXT_HANDLER_ID += 1
     return handler_id
-
-
-def _get_ai_goal_id() -> int:
-    global _NEXT_AI_GOAL_ID
-    goal_id = _NEXT_AI_GOAL_ID
-    _NEXT_AI_GOAL_ID += 1
-    return goal_id
 
 
 class Plugin:
@@ -132,9 +125,16 @@ class Plugin:
         ctx.register_command(cmd, permission)
 
     def register_ai_goal(self, goal: AiGoal) -> int:
-        goal_id = _get_ai_goal_id()
+        goal_id = _get_next_handler_id()
         _AI_GOALS[goal_id] = goal
         return goal_id
+
+    def register_chunk_generator(
+        self, generator: Callable[[world.GenerationPhase, world.ChunkBuffer], None]
+    ) -> int:
+        generator_id = _get_next_handler_id()
+        _GENERATORS[generator_id] = generator
+        return generator_id
 
     def schedule_delayed_task(
         self, delay_ticks: int, handler: Callable[[server.Server], None]
@@ -263,7 +263,7 @@ class WitWorldImpl(wit_world.WitWorld):
         self, goal_id: int, server: server.Server, entity: world.Entity
     ) -> bool:
         if goal_id in _AI_GOALS:
-            return _AI_GOALS[goal_id].can_start(server, entity)
+            return _AI_GOALS[goal_id]["can_start"](server, entity)
 
         raise Exception(f"No AI goal registered for ID {goal_id}")
 
@@ -271,7 +271,7 @@ class WitWorldImpl(wit_world.WitWorld):
         self, goal_id: int, server: server.Server, entity: world.Entity
     ) -> bool:
         if goal_id in _AI_GOALS:
-            return _AI_GOALS[goal_id].should_continue(server, entity)
+            return _AI_GOALS[goal_id]["should_continue"](server, entity)
 
         raise Exception(f"No AI goal registered for ID {goal_id}")
 
@@ -279,7 +279,7 @@ class WitWorldImpl(wit_world.WitWorld):
         self, goal_id: int, server: server.Server, entity: world.Entity
     ) -> None:
         if goal_id in _AI_GOALS:
-            _AI_GOALS[goal_id].start(server, entity)
+            _AI_GOALS[goal_id]["start"](server, entity)
             return
         raise Exception(f"No AI goal registered for ID {goal_id}")
 
@@ -287,7 +287,7 @@ class WitWorldImpl(wit_world.WitWorld):
         self, goal_id: int, server: server.Server, entity: world.Entity
     ) -> None:
         if goal_id in _AI_GOALS:
-            _AI_GOALS[goal_id].tick(server, entity)
+            _AI_GOALS[goal_id]["tick"](server, entity)
             return
         raise Exception(f"No AI goal registered for ID {goal_id}")
 
@@ -295,9 +295,17 @@ class WitWorldImpl(wit_world.WitWorld):
         self, goal_id: int, server: server.Server, entity: world.Entity
     ) -> None:
         if goal_id in _AI_GOALS:
-            _AI_GOALS[goal_id].stop(server, entity)
+            _AI_GOALS[goal_id]["stop"](server, entity)
             return
         raise Exception(f"No AI goal registered for ID {goal_id}")
+
+    def handle_generate_phase(
+        self, generator_id: int, phase: world.GenerationPhase, chunk: world.ChunkBuffer
+    ) -> None:
+        if generator_id in _AI_GOALS:
+            _GENERATORS[generator_id](phase, chunk)
+            return
+        raise Exception(f"No generator registered for ID {generator_id}")
 
 
 class MetadataImpl:
