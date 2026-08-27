@@ -37,6 +37,13 @@ _EVENT_HANDLERS: Dict[int, Callable[[server.Server, Any], Any]] = {}
 _COMMAND_HANDLERS: Dict[
     int, Callable[[command.CommandSender, server.Server, command.ConsumedArgs], int]
 ] = {}
+_COMMAND_SUGGESTION_HANDLERS: Dict[
+    int,
+    Callable[
+        [command.CommandSender, server.Server, command.SuggestionRequest],
+        command.CommandSuggestions,
+    ],
+] = {}
 _TASK_HANDLERS: Dict[int, Callable[[server.Server], None]] = {}
 _AI_GOALS: Dict[int, AiGoal] = {}
 _GENERATORS: Dict[int, Callable[[world.GenerationPhase, world.ChunkBuffer], None]] = {}
@@ -97,7 +104,7 @@ class Plugin:
         _EVENT_HANDLERS[handler_id] = handler
         ctx.register_event(handler_id, event_type, priority, blocking)
 
-    def register_handler(
+    def register_command_handler(
         self,
         handler: Callable[
             [command.CommandSender, server.Server, command.ConsumedArgs], int
@@ -107,6 +114,17 @@ class Plugin:
         _COMMAND_HANDLERS[handler_id] = handler
         return handler_id
 
+    def register_command_suggestion_handler(
+        self,
+        handler: Callable[
+            [command.CommandSender, server.Server, command.SuggestionRequest],
+            command.CommandSuggestions,
+        ],
+    ) -> int:
+        handler_id = _get_next_handler_id()
+        _COMMAND_SUGGESTION_HANDLERS[handler_id] = handler
+        return handler_id
+
     def register_command(
         self,
         ctx: context.Context,
@@ -114,14 +132,24 @@ class Plugin:
         handler: Callable[
             [command.CommandSender, server.Server, command.ConsumedArgs], int
         ],
+        suggestion_handler: Callable[
+            [command.CommandSender, server.Server, command.SuggestionRequest],
+            command.CommandSuggestions,
+        ]
+        | None = None,
         permission: str = "",
-        extra_nodes=None,
+        extra_nodes: list[command.CommandNode] | None = None,
     ):
-        handler_id = self.register_handler(handler)
+        suggestion_id = None
+        if suggestion_handler:
+            suggestion_id = self.register_command_suggestion_handler(suggestion_handler)
+        handler_id = self.register_command_handler(handler)
         cmd.execute_with_handler_id(handler_id)
         if extra_nodes:
             for node in extra_nodes:
                 node.execute_with_handler_id(handler_id)
+                if suggestion_id:
+                    node.suggest_with_handler_id(suggestion_id)
         ctx.register_command(cmd, permission)
 
     def register_ai_goal(self, goal: AiGoal) -> int:
@@ -243,6 +271,18 @@ class WitWorldImpl(wit_world.WitWorld):
                 )
             )
         )
+
+    def handle_command_suggestion(
+        self,
+        handler_id: int,
+        sender: command.CommandSender,
+        server: server.Server,
+        request: command.SuggestionRequest,
+    ) -> command.CommandSuggestions:
+        if handler_id in _COMMAND_SUGGESTION_HANDLERS:
+            return _COMMAND_SUGGESTION_HANDLERS[handler_id](sender, server, request)
+
+        raise Exception(f"No suggestion handler registered for ID {handler_id}")
 
     def handle_task(self, handler_id: int, server: server.Server) -> None:
         if handler_id in _TASK_HANDLERS:
