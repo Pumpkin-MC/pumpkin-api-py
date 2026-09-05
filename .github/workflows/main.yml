@@ -59,8 +59,11 @@ jobs:
 
       - name: Rename artifacts
         run: |
-          mv dist/pumpkin_api_py-*-py3-none-any.whl dist/pumpkin_api_py-${ARTIFACT_ID}-py3-none-any.whl
-          mv dist/pumpkin_api_py-*.tar.gz dist/pumpkin_api_py-${ARTIFACT_ID}.tar.gz
+          mv dist/pumpkin_api_py-*-py3-none-any.whl dist/pumpkin_api_py.whl
+          mv dist/pumpkin_api_py.whl dist/pumpkin_api_py-${ARTIFACT_ID}-py3-none-any.whl
+
+          mv dist/pumpkin_api_py-*.tar.gz dist/pumpkin_api_py.tar.gz
+          mv dist/pumpkin_api_py.tar.gz dist/pumpkin_api_py-${ARTIFACT_ID}.tar.gz
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
