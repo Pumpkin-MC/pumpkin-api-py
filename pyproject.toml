@@ -27,7 +27,6 @@ include = ["src/pumpkin_api", "wit/v0.1/"]
 
 [tool.hatch.build.targets.wheel.sources]
 "src" = ""
-"bindings" = ""
 "wit/v0.1/" = "pumpkin_api/wit"
 
 [tool.hatch.build.targets.wheel.hooks.custom]

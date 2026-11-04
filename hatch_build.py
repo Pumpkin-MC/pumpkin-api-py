@@ -23,4 +23,4 @@ class CustomBuildHook(BuildHookInterface):
             full_names=False,
         )
 
-        build_data["force_include"][bindings_out_path] = ""
+        build_data["force_include"][bindings_out_path] = "/"
