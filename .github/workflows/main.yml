@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   main:
@@ -83,3 +84,10 @@ jobs:
           omitBody: true
           omitDraftDuringUpdate: true
           removeArtifacts: true
+
+      - name: Trigger publish
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run publish.yml --ref "${{ github.ref }}"

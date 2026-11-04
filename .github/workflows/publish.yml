@@ -1,9 +1,6 @@
 name: Publish to PyPI
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -13,31 +10,16 @@ permissions:
 jobs:
   publish:
     name: Publish package to PyPI
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install build tool
-        run: pip install build
-
-      - name: Build distributions
-        run: python -m build
-
-      - name: Install built wheel and test example plugin
+      - name: Download artifact from GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eux
-          pip install dist/*.whl
-          cd example
-          pumpkin-plugin-build main
-          cd ..
+          mkdir dist
+          gh release -R "${{ github.repository }}" download "${{ github.ref_name }}" --pattern "pumpkin_api_py-*" --dir dist
 
-      - name: Publish package distributions to PyPI
+      - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
