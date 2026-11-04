@@ -12,7 +12,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: write
 
 jobs:
   main:
@@ -85,9 +84,10 @@ jobs:
           omitDraftDuringUpdate: true
           removeArtifacts: true
 
-      - name: Trigger publish
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh workflow run publish.yml --ref "${{ github.ref }}"
+  publish:
+    name: Publish to package manager
+    needs: main
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
+    uses: $/.github/workflows/publish.yml

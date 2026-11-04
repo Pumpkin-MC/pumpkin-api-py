@@ -1,10 +1,9 @@
 name: Publish to PyPI
 
 on:
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
-  contents: read
   id-token: write
 
 jobs:
@@ -13,13 +12,11 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifact from GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -eux
-          mkdir dist
-          gh release -R "${{ github.repository }}" download "${{ github.ref_name }}" --pattern "pumpkin_api_py-*" --dir dist
+      - name: Download artifact from main job
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist/
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
